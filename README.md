@@ -35,4 +35,4 @@ MIT — see [LICENSE](LICENSE). Free to use, modify, and distribute.
 
 ---
 
-Part of [Benchkit Labs](https://benchkit-labs.dev) · [github.com/benchkit-labs](https://github.com/benchkit-labs)
+Part of [BenchKit Labs](https://benchkit-labs.dev) · [github.com/benchkit-labs](https://github.com/benchkit-labs)
