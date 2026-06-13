@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<!--
+   S  N  A  P  P
+
+   Landing page for the SNapp ServiceNow extension — benchkit-labs.dev family.
+   One HTML page, vanilla JS, no framework, no build.
+
+   Surface model matches the org homepage: light by default, with the navy/teal
+   used only as an accent in two lit bands (hero + closing strip).
+       github.com/benchkit-labs/snapp-ext
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SNapp — a context-aware extension for ServiceNow</title>
+<meta name="description" content="SNapp is a context-aware browser extension for ServiceNow: right-click to copy formatted record links, inject change templates, and surface links and contacts from form fields. Chrome, Edge, Firefox. MIT-licensed.">
+
+<meta property="og:title" content="SNapp — a context-aware extension for ServiceNow">
+<meta property="og:description" content="Right-click any ServiceNow record to copy formatted links, inject change templates, and surface links and contacts from form fields.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://snapp.benchkit-labs.dev/">
+
+<style>
+  :root {
+    --navy:        #16273A;
+    --navy-deep:   #0E1B2A;
+    --teal:        #1FA9A5;
+    --teal-bright: #3CDCC0;
+    --teal-ink:    #0E8C86;
+
+    --paper:       #F7F9FB;
+    --paper-card:  #FFFFFF;
+    --paper-sunk:  #EEF2F6;
+    --ink:         #16273A;
+    --ink-soft:    #4A5C6E;
+    --ink-faint:   #76889A;
+    --line-light:  #E2E8EE;
+
+    --on-dark:     #E6EEF5;
+    --on-dark-mute:#9BA9B8;
+    --line-dark:   rgba(255,255,255,0.08);
+
+    --pill-bg:     rgba(31, 169, 165, 0.12);
+    --pill-text:   #0E8C86;
+    --soon-bg:     rgba(193, 132, 17, 0.12);
+    --soon-text:   #9A6A0E;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :focus { outline: none; }
+  :focus-visible {
+    outline: 2px solid var(--teal);
+    outline-offset: 3px;
+    border-radius: 4px;
+    transition: outline-offset 0.12s ease-out;
+  }
+  .btn-primary:focus-visible,
+  .btn-secondary:focus-visible { outline-offset: 2px; border-radius: 8px; }
+
+  .skip-link {
+    position: absolute; top: 8px; left: 8px;
+    padding: 10px 18px;
+    background: var(--teal-bright);
+    color: var(--navy-deep);
+    font-weight: 600; font-size: 14px;
+    border-radius: 8px; text-decoration: none;
+    transform: translateY(-120%);
+    transition: transform 0.18s ease-out;
+    z-index: 100;
+  }
+  .skip-link:focus-visible { transform: translateY(0); outline: none; }
+
+  html, body { height: 100%; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .content-well { flex: 1; overflow-y: auto; overflow-x: hidden; scroll-padding-top: 16px; }
+
+  a { color: var(--teal-ink); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ── Header (dark) ── */
+  header {
+    background: var(--navy);
+    border-bottom: 1px solid var(--line-dark);
+    padding: 0 32px;
+    height: 64px;
+    display: flex; align-items: center; gap: 14px;
+    flex-shrink: 0;
+  }
+  .wordmark { display: flex; align-items: center; gap: 11px; }
+  .mark { width: 26px; height: 26px; flex-shrink: 0; }
+  header h1 { font-size: 18px; font-weight: 600; color: var(--on-dark); letter-spacing: 0.01em; }
+  header .ver {
+    font-size: 11px;
+    background: rgba(60,220,192,0.14);
+    color: var(--teal-bright);
+    padding: 3px 9px; border-radius: 99px;
+    font-weight: 600; letter-spacing: 0.04em;
+  }
+  header nav { margin-left: auto; display: flex; gap: 22px; font-size: 14px; }
+  header nav a { color: var(--on-dark-mute); transition: color 0.15s; padding: 2px 0; }
+  header nav a:hover { color: var(--on-dark); text-decoration: none; }
+
+  /* ── Hero (dark accent band) ── */
+  .hero {
+    background: var(--navy-deep);
+    border-bottom: 1px solid var(--line-dark);
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-inner { text-align: center; padding: 72px 32px 80px; max-width: 1000px; margin: 0 auto; position: relative; }
+  .hero::before {
+    content: '';
+    position: absolute; top: -120px; left: 50%;
+    transform: translateX(-50%);
+    width: 620px; height: 620px;
+    background: radial-gradient(circle, rgba(60,220,192,1) 0%, rgba(60,220,192,0) 70%);
+    opacity: 0.14; pointer-events: none;
+  }
+  .hero-inner > * { position: relative; z-index: 1; }
+
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 12px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--soon-text);
+    background: var(--soon-bg);
+    padding: 6px 14px; border-radius: 99px;
+    margin-bottom: 24px;
+  }
+  .hero h2 {
+    font-size: 46px; font-weight: 300; line-height: 1.15;
+    margin-bottom: 22px; letter-spacing: -0.015em;
+    color: var(--on-dark);
+  }
+  .hero h2 strong {
+    font-weight: 700;
+    background: linear-gradient(90deg, var(--teal), var(--teal-bright));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero p { font-size: 18px; color: var(--on-dark-mute); max-width: 720px; margin: 0 auto 36px; }
+
+  .hero-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; align-items: center; }
+
+  .btn-primary {
+    display: inline-block; padding: 13px 28px;
+    background: linear-gradient(135deg, var(--teal), var(--teal-bright));
+    color: var(--navy-deep);
+    border-radius: 8px; font-size: 15px; font-weight: 600;
+    border: none;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 4px 16px rgba(60,220,192,0.18);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(60,220,192,0.3); text-decoration: none; }
+
+  .btn-secondary {
+    display: inline-block; padding: 13px 28px;
+    border: 1px solid rgba(255,255,255,0.18);
+    color: var(--on-dark);
+    border-radius: 8px; font-size: 15px; font-weight: 500;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .btn-secondary:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.28); text-decoration: none; }
+
+  .hero-note { font-size: 13px; color: var(--on-dark-mute); margin-top: 20px; }
+
+  /* ── Section scaffolding (light) ── */
+  .section-eyebrow {
+    text-align: center; font-size: 12px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--teal-ink); margin-bottom: 12px;
+  }
+  .section-title {
+    text-align: center; font-size: 30px; font-weight: 300;
+    margin-bottom: 16px; letter-spacing: -0.01em; color: var(--ink);
+  }
+  .section-lede { text-align: center; color: var(--ink-soft); max-width: 720px; margin: 0 auto 48px; }
+
+  /* ── Features (light) ── */
+  .features { padding: 76px 32px 84px; }
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    max-width: 1000px; margin: 0 auto;
+  }
+  .feature {
+    background: var(--paper-card);
+    border: 1px solid var(--line-light);
+    border-radius: 14px;
+    padding: 28px;
+    box-shadow: 0 1px 2px rgba(22,39,58,0.04), 0 8px 24px rgba(22,39,58,0.05);
+  }
+  .feature-icon {
+    width: 40px; height: 40px; border-radius: 11px;
+    background: var(--navy); color: var(--teal-bright);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 19px; margin-bottom: 16px;
+  }
+  .feature h4 { font-size: 18px; font-weight: 600; color: var(--ink); margin-bottom: 8px; letter-spacing: -0.01em; }
+  .feature p { font-size: 14px; color: var(--ink-soft); }
+  .feature code {
+    font-family: 'Menlo', 'Consolas', monospace; font-size: 12px;
+    color: var(--teal-ink); background: var(--paper-sunk);
+    padding: 1px 5px; border-radius: 3px;
+  }
+
+  /* ── Closing strip (dark accent band) ── */
+  .cta {
+    background: var(--navy-deep);
+    border-top: 1px solid var(--line-dark);
+    border-bottom: 1px solid var(--line-dark);
+    padding: 64px 32px; text-align: center;
+    position: relative; overflow: hidden;
+  }
+  .cta::before {
+    content: '';
+    position: absolute; bottom: -160px; left: 50%;
+    transform: translateX(-50%);
+    width: 560px; height: 560px;
+    background: radial-gradient(circle, rgba(60,220,192,1) 0%, rgba(60,220,192,0) 70%);
+    opacity: 0.10; pointer-events: none;
+  }
+  .cta > * { position: relative; z-index: 1; }
+  .cta h3 { font-size: 28px; font-weight: 300; margin-bottom: 14px; letter-spacing: -0.01em; color: var(--on-dark); }
+  .cta p { font-size: 16px; color: var(--on-dark-mute); max-width: 720px; margin: 0 auto 28px; line-height: 1.7; }
+
+  /* ── Footer (light) ── */
+  footer {
+    background: var(--paper);
+    border-top: 1px solid var(--line-light);
+    padding: 12px 32px;
+    display: flex; align-items: center; gap: 16px;
+    font-family: 'Menlo', 'Consolas', monospace; font-size: 11px;
+    color: var(--ink-faint);
+    flex-wrap: wrap; justify-content: center; flex-shrink: 0;
+  }
+  footer p { margin: 0; }
+  .footer-links { display: flex; gap: 10px; align-items: center; }
+  .footer-links a { color: var(--ink-faint); transition: color 0.15s; }
+  .footer-links a:hover { color: var(--teal-ink); text-decoration: none; }
+  .footer-links .sep { opacity: 0.5; }
+
+  @media (max-width: 640px) {
+    header { height: auto; padding: 12px 18px; flex-wrap: wrap; }
+    header nav { width: 100%; margin: 0; gap: 16px; }
+    .hero-inner { padding: 48px 18px 56px; }
+    .hero h2 { font-size: 32px; }
+    .hero p { font-size: 16px; }
+    .features, .cta, footer { padding-left: 18px; padding-right: 18px; }
+    .section-title { font-size: 26px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .btn-primary, .btn-secondary { transition: none !important; }
+    .btn-primary:hover { transform: none; }
+  }
+</style>
+</head>
+<body>
+
+<a href="#main" class="skip-link">Skip to main content</a>
+
+<header>
+  <div class="wordmark">
+    <svg class="mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M9 2.5h6M10 2.5v6.2L5 18.5a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3L14 8.7V2.5"
+            stroke="#3CDCC0" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+      <path d="M7.7 14.5h8.6" stroke="#1FA9A5" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <h1>SNapp</h1>
+  </div>
+  <span class="ver">benchkit-labs</span>
+  <nav aria-label="Primary">
+    <a href="#features">Features</a>
+    <a href="https://github.com/benchkit-labs/snapp-ext">GitHub</a>
+    <a href="https://benchkit-labs.dev">Benchkit Labs</a>
+  </nav>
+</header>
+
+<div class="content-well" id="content-well">
+
+<section class="hero" id="main">
+  <div class="hero-inner">
+    <div class="status-pill">In revival · coming back soon</div>
+    <h2>ServiceNow records, <strong>one right-click away</strong>.</h2>
+    <p>SNapp is a context-aware browser extension for ServiceNow. Right-click any record form to copy a richly formatted link or inject a standard change template — and let it surface the URLs and email contacts buried in form fields, automatically.</p>
+    <div class="hero-actions">
+      <a href="#features" class="btn-primary">See what it does</a>
+      <a href="https://github.com/benchkit-labs/snapp-ext" class="btn-secondary">View on GitHub</a>
+    </div>
+    <p class="hero-note">Chrome · Edge · Firefox (Manifest V3) · MIT-licensed · store listings coming soon</p>
+  </div>
+</section>
+
+<section class="features" id="features">
+  <div class="section-eyebrow">What it does</div>
+  <h3 class="section-title">Built for the ServiceNow form</h3>
+  <p class="section-lede">Everything runs locally in your browser on <code style="font-family:'Menlo','Consolas',monospace;font-size:13px;color:var(--teal-ink);background:var(--paper-sunk);padding:1px 6px;border-radius:3px;">*.service-now.com</code> pages. No accounts, no analytics, no servers.</p>
+
+  <div class="feature-grid">
+
+    <div class="feature">
+      <div class="feature-icon" aria-hidden="true">🔗</div>
+      <h4>Extracted links</h4>
+      <p>Scans form fields and lists discovered URLs in the Related Links panel, with friendly labels — GitHub, Jira, Confluence, Microsoft, ServiceNow <code>.do</code> records, or the bare hostname for anything else.</p>
+    </div>
+
+    <div class="feature">
+      <div class="feature-icon" aria-hidden="true">✉️</div>
+      <h4>Email contacts</h4>
+      <p>Turns email addresses found in form fields into labeled <code>mailto:</code> links, so you can reach the people referenced on a record without copy-pasting addresses.</p>
+    </div>
+
+    <div class="feature">
+      <div class="feature-icon" aria-hidden="true">⧉</div>
+      <h4>Copy a record link</h4>
+      <p>Right-click to copy a canonical <code>nav_to.do</code> hyperlink to the current record — optionally with its short description appended — ready to paste into a ticket, doc, or chat.</p>
+    </div>
+
+    <div class="feature">
+      <div class="feature-icon" aria-hidden="true">⚙️</div>
+      <h4>Change metadata &amp; templates</h4>
+      <p>On change requests, emit a formatted block of state, type, dates, CI, and assignment — or inject a standard change template — straight from the context menu.</p>
+    </div>
+
+  </div>
+</section>
+
+<section class="cta">
+  <h3>Coming back soon.</h3>
+  <p>SNapp is being brought back into shape. It's free, MIT-licensed, and runs entirely in your browser. Watch the repo to know the moment it lands in the stores.</p>
+  <a href="https://github.com/benchkit-labs/snapp-ext" class="btn-primary">Watch on GitHub</a>
+</section>
+
+</div><!-- /.content-well -->
+
+<footer>
+  <p>SNapp · 2026 · MIT</p>
+  <p class="footer-links">
+    <a href="https://github.com/benchkit-labs/snapp-ext">GitHub</a>
+    <span class="sep">·</span>
+    <a href="https://benchkit-labs.dev">Benchkit Labs</a>
+  </p>
+</footer>
+
+</body>
+</html>
